@@ -35,7 +35,7 @@ class PartOut(BaseModel):
 
 def require_warehouse_manager(current_user: models.User = Depends(auth.get_current_user)):
     # Csak Raktárvezető vagy Admin végezheti
-    if current_user.role != "Raktárvezető" and not current_user.is_admin:
+    if current_user.role != "Raktárvezető" and current_user.role != "Adminisztrator":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ehhez a művelethez Raktárvezetői jogosultság szükséges!"
@@ -97,48 +97,3 @@ def list_parts(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     return db.query(models.Part).all()
-
-
-@router.post("/warehouse/generate")
-def generate_warehouse(
-    rows: int,
-    cols: int,
-    levels: int,
-    db: Session = Depends(database.get_db),
-    admin: models.User = Depends(auth.require_admin)
-):
-    """
-    Legenerálja a raktárhelyeket (pl. 5 sor, 10 oszlop, 3 szint).
-    Csak Admin hívhatja meg.
-    """
-    # Ellenőrizzük, van-e már adat (hogy ne duplikáljunk véletlenül)
-    existing = db.query(models.WarehouseSlot).first()
-    if existing:
-        raise HTTPException(
-            status_code=400, detail="A raktár már fel van töltve helyekkel!")
-
-    slots_created = 0
-    for r in range(1, rows + 1):
-        for c in range(1, cols + 1):
-            for l in range(1, levels + 1):
-                # Egyedi azonosító, pl: "S01-O02-SZ03"
-                readable_id = f"S{r:02d}-O{c:02d}-SZ{l:02d}"
-
-                new_slot = models.WarehouseSlot(
-                    row_num=r,
-                    col_num=c,
-                    level_num=l,
-                    readable_id=readable_id,
-                    current_quantity=0
-                )
-                db.add(new_slot)
-                slots_created += 1
-
-    db.commit()
-    return {"message": f"Sikeresen legenerálva {slots_created} raktárhely."}
-
-
-@router.get("/warehouse/slots", response_model=List[dict])
-def get_warehouse_slots(db: Session = Depends(database.get_db)):
-    """Kilistázza az összes raktárhelyet és azok tartalmát."""
-    return db.query(models.WarehouseSlot).all()

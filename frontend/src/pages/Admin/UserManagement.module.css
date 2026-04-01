@@ -1,0 +1,142 @@
+.container {
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.actionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.userTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.userTable th,
+.userTable td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.userTable th {
+  background-color: #f4f6f8;
+  color: #555;
+  font-weight: 600;
+}
+
+.adminBadge {
+  background: #e1f5fe;
+  color: #0288d1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.currentUserRow {
+  background-color: #fff9db; /* Halvány sárga kiemelés az aktuális felhasználónak */
+}
+
+/* Gombok alapstílusa */
+.editBtn,
+.deleteBtn,
+.saveBtn,
+.cancelBtn,
+.addBtn {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  font-size: 0.9rem;
+}
+
+.addBtn {
+  background: #27ae60;
+  color: white;
+  padding: 8px 20px;
+}
+
+.editBtn {
+  background-color: #3498db;
+  color: white;
+}
+
+.deleteBtn {
+  background: #ff7675;
+  color: white;
+}
+
+.saveBtn {
+  background-color: #2ecc71;
+  color: white;
+}
+
+.cancelBtn {
+  background-color: #95a5a6;
+  color: white;
+}
+
+.editBtn:hover,
+.saveBtn:hover,
+.cancelBtn:hover,
+.addBtn:hover {
+  filter: brightness(90%);
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: #d63031;
+}
+
+.deleteBtn:disabled {
+  background-color: #cccccc !important;
+  color: #666666 !important;
+  cursor: not-allowed !important;
+  opacity: 0.7;
+}
+
+/* Új user form */
+.formInline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #eee;
+}
+
+.formGrid {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.input,
+.select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.inputSmall {
+  padding: 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 120px;
+}
+
+.btnGroup {
+  display: flex;
+  gap: 8px;
+}

@@ -48,7 +48,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 
 def require_admin(current_user: models.User = Depends(get_current_user)):
-    if not current_user.is_admin:
+    # A models.py-ban 'role' néven van a 'Pozicio' oszlop
+    if current_user.role != "Adminisztrator":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ehhez a művelethez Adminisztrátor jogkör szükséges!"

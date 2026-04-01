@@ -1,0 +1,115 @@
+.flexLayout {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  height: calc(100vh - 100px); /* Levonjuk a fejléc magasságát */
+  background-color: #f4f7f6;
+  overflow: hidden; /* Megakadályozzuk a teljes oldal görgetését */
+}
+
+/* Bal oldali bevételezési sáv */
+.sidebar {
+  width: 350px;
+  min-width: 350px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+  border: 1px solid #e0e6e8;
+}
+
+/* Jobb oldali térkép terület */
+.mapArea {
+  flex: 1;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow-y: auto; /* A térkép magában görgethető, ha nagy */
+  border: 1px solid #e0e6e8;
+}
+
+/* --- GOODS RECEIPT SPECIÁLIS STÍLUSOK (Ha nem külön fájlba teszed) --- */
+
+.receiptCard h3 {
+  margin-top: 0;
+  color: #2c3e50;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.formGroup {
+  margin-bottom: 15px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.formGroup select,
+.formGroup input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #dcdfe3;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.suggestBtn {
+  width: 100%;
+  padding: 12px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.suggestBtn:hover {
+  background-color: #2980b9;
+}
+
+.suggestionResult {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #e8f4fd;
+  border-left: 4px solid #3498db;
+  border-radius: 4px;
+}
+
+.confirmBtn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #2ecc71;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.confirmBtn:hover {
+  background-color: #27ae60;
+}
+
+/* Reszponzivitás: Ha túl kicsi a képernyő, egymás alá rakja */
+@media (max-width: 1100px) {
+  .flexLayout {
+    flex-direction: column;
+    overflow: auto;
+    height: auto;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-width: 100%;
+  }
+}

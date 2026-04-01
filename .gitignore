@@ -1,0 +1,30 @@
+# Python virtuális környezetek
+.venv/
+venv/
+ENV/
+env/
+
+# Python lefordított fájlok
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Adatbázis (hogy ne írd felül a szerverit a sajátoddal)
+*.db
+*.sqlite3
+
+# Node.js (Frontend függőségek - ez nagyon fontos!)
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Környezeti változók (jelszavak, titkos kulcsok)
+.env
+.env.local
+.env.*.local
+
+# IDE beállítások
+.vscode/
+.idea/
+.DS_Store

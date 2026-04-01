@@ -1,0 +1,161 @@
+/* src/pages/GoodsReceipt.module.css */
+
+.receiptCard {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.receiptCard h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.25rem;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Beviteli mezők csoportosítása */
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.formGroup label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #636e72;
+}
+
+.receiptCard select,
+.receiptCard input {
+  padding: 12px;
+  border: 1px solid #dfe6e9;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+  background-color: #fdfdfd;
+  color: #2c3e50;
+}
+
+.receiptCard select:focus,
+.receiptCard input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* Funkciógombok */
+.suggestBtn {
+  padding: 12px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  margin-top: 5px;
+  border-radius: 8px;
+}
+
+.suggestBtn:hover {
+  background-color: #2980b9;
+}
+
+.suggestBtn:active {
+  transform: scale(0.98);
+}
+
+/* Ajánlás eredménye (Kártya a kártyában) */
+.suggestionResult {
+  margin-top: 10px;
+  padding: 15px;
+  background-color: #ebf5fb;
+  border: 1px dashed #3498db;
+  border-radius: 8px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.suggestionResult p {
+  margin: 0 0 10px 0;
+  font-size: 0.95rem;
+  color: #2c3e50;
+}
+
+.suggestionResult strong {
+  color: #2980b9;
+  font-size: 1.1rem;
+}
+
+.confirmBtn {
+  width: 100%;
+  padding: 10px;
+  background-color: #2ecc71;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.confirmBtn:hover {
+  background-color: #27ae60;
+}
+
+/* Megjelenési animáció */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stepList {
+  margin-top: 20px;
+  border-top: 2px solid #eee;
+  padding-top: 15px;
+}
+
+.stepItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #ddd;
+  transition: all 0.3s;
+}
+
+.activeStep {
+  border-left: 5px solid #2ecc71;
+  background: #f0fff4;
+  box-shadow: 0 2px 8px rgba(46, 204, 113, 0.2);
+}
+
+.reason {
+  font-size: 0.75rem;
+  color: #7f8c8d;
+}
+
+.stepItem button {
+  background: #2ecc71;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.stepItem button:hover {
+  background: #27ae60;
+}
