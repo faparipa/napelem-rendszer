@@ -9,7 +9,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import UserManagement from './pages/Admin/UserManagement';
 import PartsManagement from './pages/Manager/PartsManagement';
-import WarehouseManagement from './pages/Manager/WarehouseManagement';
+//import WarehouseManagement from './pages/Manager/ManagerDashboard';
 import ManagerDashboard from './pages/Manager/ManagerDashboard';
 import WorkerDashboard from './pages/Worker/WorkerDashboard';
 import ExpertDashboard from './pages/Expert/ExpertDashboard';
@@ -25,7 +25,7 @@ function App() {
           <Route path='/admin' element={<AdminDashboard />}>
             <Route path='users' element={<UserManagement />} />
             <Route path='parts' element={<PartsManagement />} />
-            <Route path='map' element={<WarehouseManagement />} />
+            <Route path='manager' element={<ManagerDashboard />} />
             <Route path='expert' element={<ExpertDashboard />} />
           </Route>
         </Route>

@@ -21,7 +21,7 @@ const AdminDashboard = () => {
           <Link to='/admin/parts' className={styles.navLink}>
             📦 Alkatrészek kezelése
           </Link>
-          <Link to='/admin/map' className={styles.navLink}>
+          <Link to='/admin/manager' className={styles.navLink}>
             🏢 Raktár Térkép
           </Link>
           <Link to='/admin/expert' className={styles.navLink}>
