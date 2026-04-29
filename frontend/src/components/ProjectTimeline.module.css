@@ -1,0 +1,72 @@
+.timelineContainer {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.timelineList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.timelineItem {
+  display: flex;
+  gap: 20px;
+  padding-left: 15px;
+  border-left: 3px solid #cbd5e1;
+}
+
+.timeBadge {
+  min-width: 150px;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.statusLabel {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+/* Státusz színek dinamikusan */
+.Draft {
+  background: #e2e8f0;
+  color: #475569;
+}
+.Wait {
+  background: #fef9c3;
+  color: #854d0e;
+}
+.Scheduled {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.InProgress {
+  background: #fef3c7;
+  color: #92400e;
+}
+.Completed {
+  background: #dcfce7;
+  color: #166534;
+}
+.Failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.message {
+  margin-top: 5px;
+  color: #334155;
+}
+.userNote {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 4px 0;
+  font-style: italic;
+}

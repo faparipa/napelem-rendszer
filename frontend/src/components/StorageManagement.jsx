@@ -1,0 +1,93 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import styles from './StorageManagement.module.css';
+
+const StorageManagement = () => {
+  const [slots, setSlots] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const fetchSlots = async () => {
+    try {
+      const res = await axios.get(
+        'http://localhost:8000/warehouse/slots-status',
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        }
+      );
+      setSlots(res.data);
+    } catch (err) {
+      console.error('Hiba a rekeszek betöltésekor', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSlots();
+  }, []);
+
+  const filteredSlots = slots.filter(
+    (slot) =>
+      slot.readable_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (slot.part_name &&
+        slot.part_name.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  return (
+    <div className={styles.container}>
+      <header className={styles.header}>
+        <h2>📦 Rekeszek és Tárhelyek Állapota</h2>
+        <input
+          type='text'
+          placeholder='Keresés rekesz vagy alkatrész alapján...'
+          className={styles.searchInput}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </header>
+
+      <div className={styles.slotGrid}>
+        {filteredSlots.map((slot) => {
+          const current = slot.current_quantity || 0;
+          const max = slot.max_per_slot || 0;
+          const occupancy = max > 0 ? Math.round((current / max) * 100) : 0;
+          const partName = slot.part_name || 'Üres rekesz';
+
+          return (
+            <div key={slot.id} className={styles.slotCard}>
+              <div className={styles.slotId}>{slot.readable_id}</div>
+
+              {/* Alkatrész neve - Ha nincs benne semmi, írjuk ki hogy Üres */}
+              <div className={styles.partName}>
+                {slot.part_name ? (
+                  <strong>{slot.part_name}</strong>
+                ) : (
+                  <span className={styles.empty}>Üres rekesz</span>
+                )}
+              </div>
+
+              <div className={styles.quantityInfo}>
+                {current} / {max > 0 ? max : '0'} db
+              </div>
+
+              <div className={styles.progressContainer}>
+                <div
+                  className={styles.progressBar}
+                  style={{
+                    width: `${occupancy > 100 ? 100 : occupancy}%`,
+                    backgroundColor:
+                      occupancy >= 100
+                        ? '#ef4444'
+                        : occupancy > 0
+                        ? '#3b82f6'
+                        : '#e2e8f0',
+                  }}
+                ></div>
+              </div>
+              <small>{occupancy}% telítettség</small>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default StorageManagement;

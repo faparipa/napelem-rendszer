@@ -13,14 +13,14 @@ import warehouse_management
 import expert_management
 
 # --- EZ A SOR HOZZA LÉTRE AZ ADATBÁZIST INDÍTÁSKOR ---
-models.Base.metadata.create_all(bind=database.engine)
+# ---models.Base.metadata.create_all(bind=database.engine) ---
 
 app = FastAPI(title="Napelem Rendszer Raktárkezelő")
 
 # --- CORS BEÁLLÍTÁS (hogy a React elérje a backendet) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

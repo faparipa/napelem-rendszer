@@ -11,16 +11,30 @@ const PartsManagement = () => {
   });
   const [editingId, setEditingId] = useState(null);
   const [editPrice, setEditPrice] = useState('');
+  const [editMax, setEditMax] = useState('');
   const token = localStorage.getItem('token');
 
   const fetchParts = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/parts', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setParts(res.data);
-    } catch (err) {
-      console.error('Hiba az alkatrészek lekérésekor', err);
+      // 1. Token kiolvasása a localStorage-ból
+      const token = localStorage.getItem('token');
+
+      // 2. Kérés küldése a JÓ URL-re és a fejléccel
+      const response = await axios.get(
+        'http://localhost:8000/warehouse/parts',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // <--- Ez kötelező!
+          },
+        }
+      );
+
+      setParts(response.data);
+    } catch (error) {
+      console.error('Hiba az alkatrészek lekérésekor', error);
+      if (error.response?.status === 401) {
+        alert('Lejárt a munkamenet vagy nincs jogosultsága!');
+      }
     }
   };
 
@@ -109,6 +123,7 @@ const PartsManagement = () => {
             <th>ID</th>
             <th>Név</th>
             <th>Egységár</th>
+            <th>Raktáron</th>
             <th>Max/Slot</th>
             <th>Műveletek</th>
           </tr>
@@ -129,6 +144,14 @@ const PartsManagement = () => {
                 ) : (
                   `${part.price.toLocaleString()} Ft`
                 )}
+              </td>
+              <td
+                style={{
+                  fontWeight: 'bold',
+                  color: part.total_stock > 0 ? 'green' : 'red',
+                }}
+              >
+                {part.total_stock} db
               </td>
               <td>{part.max_per_slot} db</td>
               <td>

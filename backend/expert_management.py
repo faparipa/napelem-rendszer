@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 import models
 import database
+from auth import get_current_user
 
 router = APIRouter(prefix="/expert", tags=["Szakember"])
 
@@ -17,6 +18,10 @@ class ProjectCreate(BaseModel):
     customer_name: str
     customer_phone: str
 
+
+class FinalizeSchema(BaseModel):
+    estimated_time: int  # estimated_hours helyett
+    price: int
 # 1. Új projekt létrehozása („New”)
 
 
@@ -50,13 +55,17 @@ def create_project(data: ProjectCreate, db: Session = Depends(database.get_db)):
         # Itt kiíratjuk a pontos hibát a konzolra, ha mégis lenne valami
         print(f"Hiba: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-# 2. Projektek listázása
 
 
+# 2. Projektek listázása (szűréssel kiegészítve)
 @router.get("/projects")
-def get_expert_projects(db: Session = Depends(database.get_db)):
-    return db.query(models.Projekt).all()
+def get_expert_projects(status: Optional[str] = None, db: Session = Depends(database.get_db)):
+    query = db.query(models.Projekt)
 
+    if status:
+        query = query.filter(models.Projekt.status == status)
+
+    return query.all()
 # 3. Alkatrészek listázása készletadatokkal
 
 
@@ -79,7 +88,22 @@ def get_parts_stock(db: Session = Depends(database.get_db)):
 
 
 @router.post("/projects/{p_id}/parts")
-def add_or_update_project_part(p_id: int, data: dict, db: Session = Depends(database.get_db)):
+def add_or_update_project_part(p_id: int, data: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    # 1. Előbb le kell kérni a projektet, hogy tudjuk, létezik-e és mi a státusza!
+    project = db.query(models.Projekt).filter(
+        models.Projekt.id == p_id).first()
+
+    if not project:
+        raise HTTPException(status_code=404, detail="A projekt nem található!")
+
+    # 2. Most már ellenőrizhető a státusz
+    if project.status in ["Completed", "Failed"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Ez a projekt már lezárult, nem módosítható!"
+        )
+
+    # 3. Megkeressük, van-e már ilyen alkatrész a projekthez adva
     existing = db.query(models.ProjektAlkatresz).filter(
         models.ProjektAlkatresz.projekt_id == p_id,
         models.ProjektAlkatresz.part_id == data['part_id']
@@ -95,35 +119,112 @@ def add_or_update_project_part(p_id: int, data: dict, db: Session = Depends(data
         )
         db.add(new_item)
 
-    project = db.query(models.Projekt).filter(
-        models.Projekt.id == p_id).first()
-    if project and project.status == "New":
+    # 4. Átváltás Draft-ra, ha eddig New volt
+    if project.status == "New":
         project.status = "Draft"
+        db.add(models.ProjektNaplo(
+            projekt_id=p_id,
+            status="Draft",
+            user_id=current_user.id
+        ))
 
-    db.commit()
-    return {"message": "Sikeres mentés"}
+    try:
+        db.commit()
+        return {"message": "Sikeres mentés"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Adatbázis hiba: {str(e)}")
 
 # 5 & 6. Kalkuláció mentése és küldése a raktárnak (Átvált „Wait”-re)
 
 
+# @router.put("/projects/{p_id}/finalize")
+# def finalize_project_calculation(p_id: int, data: dict, db: Session = Depends(database.get_db)):
+#     project = db.query(models.Projekt).filter(
+#         models.Projekt.id == p_id).first()
+#     if not project:
+#         raise HTTPException(status_code=404, detail="Projekt nem található")
+
+#     project.estimated_time = data.get("estimated_hours")
+#     project.price = data.get("total_price")
+#     project.status = "Wait"
+
+#     db.add(models.ProjektNaplo(projekt_id=p_id, status="Wait",))
+#     db.commit()
+#     return {"status": "Wait", "message": "Igény továbbítva a raktárnak."}
+
+# @router.put("/projects/{p_id}/finalize")
+# def finalize_project(p_id: int, data: FinalizeSchema, db: Session = Depends(database.get_db)):
+#     project = db.query(models.Projekt).filter(
+#         models.Projekt.id == p_id).first()
+#     if not project:
+#         raise HTTPException(status_code=404)
+
+#     # 1. Ellenőrizzük, van-e elég mindenből
+#     project_parts = db.query(models.ProjektAlkatresz).filter(
+#         models.ProjektAlkatresz.projekt_id == p_id).all()
+#     all_available = True
+
+#     for item in project_parts:
+#         stock = db.query(func.sum(models.WarehouseSlot.current_quantity)).filter(
+#             models.WarehouseSlot.part_id == item.part_id).scalar() or 0
+#         if stock < item.required_quantity:
+#             all_available = False
+#             break
+
+#     # 2. Adatok mentése
+#     project.estimated_time = data.estimated_hours
+#     project.price = data.total_price
+
+#     # 3. Státusz döntés a készlet alapján
+#     new_status = "Scheduled" if all_available else "Wait"
+#     project.status = new_status
+
+#     # Naplózás
+#     db.add(models.ProjektNaplo(projekt_id=p_id, status=new_status))
+#     db.commit()
+
+#     return {"status": new_status, "price": project.price, "hours": project.estimated_time}
+
 @router.put("/projects/{p_id}/finalize")
-def finalize_project_calculation(p_id: int, data: dict, db: Session = Depends(database.get_db)):
+def finalize_project(p_id: int, data: FinalizeSchema, db: Session = Depends(database.get_db)):
     project = db.query(models.Projekt).filter(
         models.Projekt.id == p_id).first()
     if not project:
-        raise HTTPException(status_code=404, detail="Projekt nem található")
+        raise HTTPException(status_code=404)
 
-    project.estimated_time = data.get("estimated_hours")
-    project.price = data.get("total_price")
-    project.status = "Wait"
+    if project.status in ["InProgress", "Completed", "Failed"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A projekt már {project.status} állapotban van, a kalkuláció nem módosítható!"
+        )
 
-    db.add(models.ProjektNaplo(projekt_id=p_id, status="Wait",
-           message="Szakember beküldte az igényt."))
+    project_parts = db.query(models.ProjektAlkatresz).filter(
+        models.ProjektAlkatresz.projekt_id == p_id).all()
+    all_available = True
+
+    for item in project_parts:
+        stock = db.query(func.sum(models.WarehouseSlot.current_quantity)).filter(
+            models.WarehouseSlot.part_id == item.part_id).scalar() or 0
+        if stock < item.required_quantity:
+            all_available = False
+            break
+
+    project.estimated_time = data.estimated_time
+    project.price = data.price
+
+    # 3. Státusz döntés
+    new_status = "Scheduled" if all_available else "Wait"
+    project.status = new_status
+
+    db.add(models.ProjektNaplo(projekt_id=p_id, status=new_status))
     db.commit()
-    return {"status": "Wait", "message": "Igény továbbítva a raktárnak."}
+
+    return {"status": new_status, "price": project.price, "hours": project.estimated_time}
+
 
 # 7. Projekt lezárása (Completed / Failed)
-
 
 @router.put("/projects/{p_id}/status")
 def update_project_status(p_id: int, data: dict, db: Session = Depends(database.get_db)):
@@ -180,3 +281,25 @@ def delete_project_part(item_id: int, db: Session = Depends(database.get_db)):
     db.delete(item)
     db.commit()
     return {"message": "Törölve"}
+
+
+@router.get("/projects/{p_id}/logs")
+def get_project_logs(p_id: int, db: Session = Depends(database.get_db)):
+    """
+    Visszaadja egy adott projekt összes állapotváltozását időrendben.
+    """
+    logs = db.query(models.ProjektNaplo)\
+             .filter(models.ProjektNaplo.projekt_id == p_id)\
+             .order_by(models.ProjektNaplo.id.desc()).all()  # Legfrissebb elől
+
+    if not logs:
+        return []
+
+    return [
+        {
+            "id": log.id,
+            "status": log.status,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+            "user_name": log.user.username if log.user else "Rendszer"
+        } for log in logs
+    ]

@@ -1,0 +1,138 @@
+.container {
+  padding: 20px;
+  background: #f8f9fa;
+  min-height: 100vh;
+}
+.nav {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.dashboardGrid {
+  display: flex;
+  gap: 20px;
+}
+.leftPanel {
+  flex: 1;
+}
+.leftPanel h3 {
+  margin-left: 20px;
+}
+.rightPanel {
+  flex: 2;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.projectSelector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.projectBtn {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+.activeBtn {
+  background: #3498db;
+  color: white;
+  border-color: #2980b9;
+}
+
+.pickingTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pickingTable td,
+.pickingTable th {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+.locCode {
+  background: #34495e;
+  color: white;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.completeBtn {
+  margin-top: 20px;
+  width: 100%;
+  padding: 15px;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.emptyHint {
+  text-align: center;
+  color: #999;
+  margin-top: 50px;
+}
+
+/* Adjunk hozzá egy vizuális jelzést a hiányhoz */
+.pickingTable tr td:nth-child(4) {
+  font-weight: 500;
+  text-align: center;
+}
+
+.pickingTable tr td:nth-child(5) {
+  text-align: center;
+  border-left: 1px solid #eee;
+}
+
+.activeCard {
+  border: 2px solid #3498db !important;
+  background-color: #f0f7ff !important;
+  transform: scale(1.02);
+}
+/* Alap gomb stílus */
+.btnComplete {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-weight: bold;
+  transition: background-color 0.3s;
+  width: 100%;
+}
+
+/* Ha aktív és készre jelenthető */
+.active {
+  background-color: #28a745;
+  cursor: pointer;
+}
+
+.active:hover {
+  background-color: #218838;
+}
+
+/* Ha hiányzik alkatrész és le van tiltva */
+.disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin-top: 2rem;
+}

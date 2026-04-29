@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import styles from './UserManagement.module.css';
+import { useCallback } from 'react';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -14,43 +15,64 @@ const UserManagement = () => {
     password: '',
     role: 'Szakember',
   });
+  const getHeaders = () => {
+    const token = localStorage.getItem('token');
+    return { Authorization: `Bearer ${token}` };
+  };
 
-  const token = localStorage.getItem('token');
-
-  useEffect(() => {
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        // A backendtől függően az id vagy a sub mező tartalmazza az azonosítót
-        setCurrentUserId(decoded.id || decoded.sub);
-        // Kinyerjük a felhasználónevet is a biztosabb azonosításhoz
-        setCurrentUsername(decoded.username || '');
-      } catch (err) {
-        console.error('Token dekódolási hiba:', err);
-      }
-    }
-    fetchUsers();
-  }, [token]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await axios.get('http://localhost:8000/users', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: getHeaders(),
       });
       setUsers(res.data);
     } catch (err) {
       console.error('Hiba a lekéréskor:', err);
+      if (err.response?.status === 401) {
+        alert('Lejárt a munkamenet vagy nincs jogosultsága!');
+      }
+    }
+  }, []);
+
+  // VISSZAKAPCSOLVA: Ez tölti be az adatokat és azonosít téged
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setCurrentUserId(decoded.id || decoded.sub);
+        setCurrentUsername(decoded.username || '');
+      } catch (err) {
+        console.error('Token hiba:', err);
+      }
+    }
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    try {
+      // FONTOS: A role értékének egyeznie kell az SQL ENUM-mal!
+      await axios.post('http://localhost:8000/users', newUser, {
+        headers: getHeaders(),
+      });
+      setNewUser({ username: '', password: '', role: 'Szakember' });
+      fetchUsers();
+      alert('Sikeres mentés!');
+    } catch (err) {
+      alert('Hiba: ' + (err.response?.data?.detail || 'Sikertelen mentés'));
     }
   };
 
   const startEdit = (user) => {
     setEditingId(user.id);
+
     setEditData({
       role: user.role,
+
       password: '',
     });
   };
-
   const handleUpdate = async (id) => {
     try {
       const payload = {
@@ -59,26 +81,12 @@ const UserManagement = () => {
       };
 
       await axios.put(`http://localhost:8000/users/${id}`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: getHeaders(),
       });
       setEditingId(null);
       fetchUsers();
     } catch (err) {
       alert('Sikertelen módosítás: ' + (err.response?.data?.detail || 'Hiba'));
-    }
-  };
-
-  const handleAddUser = async (e) => {
-    e.preventDefault();
-    try {
-      await axios.post('http://localhost:8000/users', newUser, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setNewUser({ username: '', password: '', role: 'Szakember' });
-      fetchUsers();
-      alert('Felhasználó sikeresen hozzáadva!');
-    } catch (err) {
-      alert('Hiba: ' + (err.response?.data?.detail || 'Sikertelen mentés'));
     }
   };
 
@@ -97,7 +105,7 @@ const UserManagement = () => {
       return;
     try {
       await axios.delete(`http://localhost:8000/users/${user.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: getHeaders(),
       });
       fetchUsers();
     } catch (err) {

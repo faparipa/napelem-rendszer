@@ -1,6 +1,11 @@
 import styles from './ExpertDashboard.module.css';
 
-const ProjectPartsList = ({ projectParts, onUpdate, onDelete }) => (
+const ProjectPartsList = ({
+  projectParts,
+  onUpdate,
+  onDelete,
+  canSubmitOrder,
+}) => (
   <div className={styles.section}>
     <h3>Rendelt tételek módosítása</h3>
     <table className={styles.partTable}>
@@ -22,6 +27,12 @@ const ProjectPartsList = ({ projectParts, onUpdate, onDelete }) => (
             <td>{item.price * item.required_quantity} Ft</td>
             <td>
               <button
+                disabled={!canSubmitOrder}
+                style={
+                  !canSubmitOrder
+                    ? { backgroundColor: '#ccc', cursor: 'not-allowed' }
+                    : {}
+                }
                 onClick={() => onUpdate(item.id, item.required_quantity)}
                 className={styles.editBtn}
               >

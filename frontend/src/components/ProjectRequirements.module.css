@@ -1,0 +1,65 @@
+.container {
+  margin-top: 20px;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.title {
+  font-size: 1.2rem;
+  color: #2c3e50;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #3498db;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.projectCard {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-left: 5px solid #3498db;
+  transition: transform 0.2s;
+}
+
+.projectCard:hover {
+  transform: translateX(5px);
+}
+
+.projectHeader {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 8px;
+  color: #34495e;
+}
+
+.partsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.partBadge {
+  background-color: #e1f5fe;
+  color: #0277bd;
+  padding: 4px 10px;
+  border-radius: 15px;
+  font-size: 0.85rem;
+  border: 1px solid #b3e5fc;
+}
+
+.partQty {
+  font-weight: 900;
+  margin-left: 4px;
+}
+
+.empty {
+  color: #7f8c8d;
+  text-align: center;
+  padding: 10px;
+}

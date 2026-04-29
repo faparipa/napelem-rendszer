@@ -1,13 +1,22 @@
 .container {
-  display: flex;
-  height: calc(100vh - 100px);
-  background: #f4f7f6;
-  gap: 20px;
   padding: 20px;
-  overflow: auto;
-  scroll-timeline: --scroll y;
+  background: #f8f9fa;
+  min-height: 100vh;
 }
-
+.nav {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.dashboardGrid {
+  display: flex;
+  gap: 20px;
+}
 .sidebar {
   width: 300px;
   background: white;
@@ -25,19 +34,13 @@
   align-items: center;
 }
 
-.logoutBtn {
-  background-color: #e74c3c;
+.addBtn {
+  background: #3498db;
   color: white;
   border: none;
   padding: 5px 10px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.8rem;
-  transition: background 0.3s;
-}
-
-.logoutBtn:hover {
-  background-color: #c0392b;
 }
 
 .projectList {
@@ -196,7 +199,7 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
-
+  margin-bottom: 1rem;
   font-size: 1rem;
 }
 
@@ -302,6 +305,7 @@
   transition: all 0.3s ease;
   outline: none;
   background-color: #f9f9f9;
+  color: #2c3e50;
 }
 
 .modal input:focus,
@@ -351,7 +355,17 @@
   cursor: pointer;
   transition: background 0.2s ease;
 }
-
+.toggleLogBtn {
+  flex: 1;
+  background-color: #e7ab3c;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
 .cancelBtn:hover {
   background-color: #c0392b;
 }

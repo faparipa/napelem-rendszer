@@ -14,7 +14,7 @@ INSERT INTO Felhasznalo (Pozicio, Felhasznalonev, Jelszo) VALUES
 ('Adminisztrator','vargaistvan','$2b$12$KqsFCp/EVMAemm7jZoyJ/OFgORQtaxD6./FlqVgiOxuHlYiGLf.ay'),
 ('Szakember','kisstamas','$2b$12$sYpR7a.aMX.4o86URYR.2eUpYKletLchHwXvx2sRCnMg2HDWBvvXW'),
 ('Raktarvezeto','nagyimre','$2b$12$HokkSZP7mfTKR88.sUwLpOjlEur70sg./autVWDvSFAng9Dg1dSJe'),
-('Raktaros','bogdanlajos','2b$12$ltivOaCaS3jIKCb52sUFLO8hsgKkUzxhdjZ75IKhrU6VG6iAkuhdi');
+('Raktaros','bogdanlajos','$2b$12$ltivOaCaS3jIKCb52sUFLO8hsgKkUzxhdjZ75IKhrU6VG6iAkuhdi');
 
 -- 2. Alkatrészek [cite: 53]
 CREATE TABLE Alkatresz (
@@ -66,13 +66,17 @@ INSERT INTO Projekt (Megrendelo_Adatok, Helyszin, Leiras, Statusz, Becsult_ido, 
 ('Kiss János','8800 Nagykanizsa Arany János utca 20', 'Családi házra napelem','New',NULL,NULL),
 ('Lakatos Nándor','8800 Nagykanizsa Csengery utca 2', 'Családi házra napelem','Scheduled',40,2500000);
 
--- 5. Projekt Napló (Statisztikákhoz) [cite: 40, 41]
+
+-- 5. Projekt Napló (Kiegészítve a felhasználóval)
+DROP TABLE IF EXISTS Projekt_Naplo;
 CREATE TABLE Projekt_Naplo(
     Naplo_ID INT AUTO_INCREMENT PRIMARY KEY,
     Projekt_ID INT NOT NULL,
+    Felhasznalo_ID INT NULL, -- Ezt adtuk hozzá
     Statusz ENUM('New','Draft','Wait','Scheduled','InProgress','Completed','Failed') NOT NULL,
     Datum DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (Projekt_ID) REFERENCES Projekt(Projekt_ID)
+    FOREIGN KEY (Projekt_ID) REFERENCES Projekt(Projekt_ID),
+    FOREIGN KEY (Felhasznalo_ID) REFERENCES Felhasznalo(Felhasznalo_ID)
 );
 
 -- 6. Projekt Alkatrészek (Foglalások) [cite: 4, 5, 47]

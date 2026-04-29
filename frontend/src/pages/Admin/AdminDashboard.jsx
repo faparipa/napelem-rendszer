@@ -1,5 +1,6 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import styles from './AdminDashboard.module.css';
+import LogoutButton from '../../components/LogoutButton';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -18,18 +19,18 @@ const AdminDashboard = () => {
           <Link to='/admin/users' className={styles.navLink}>
             👤 Felhasználók kezelése
           </Link>
-          <Link to='/admin/parts' className={styles.navLink}>
-            📦 Alkatrészek kezelése
+          <Link to='/admin/worker' className={styles.navLink}>
+            📦 Raktáros
           </Link>
           <Link to='/admin/manager' className={styles.navLink}>
-            🏢 Raktár Térkép
+            🏢 Raktárvezető
           </Link>
           <Link to='/admin/expert' className={styles.navLink}>
             👤 Szakember
           </Link>
-          <button onClick={handleLogout} className={styles.logoutBtn}>
-            Kijelentkezés
-          </button>
+          <div className={styles.logoutWrapper}>
+            <LogoutButton />
+          </div>
         </nav>
       </aside>
 

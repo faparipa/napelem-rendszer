@@ -40,7 +40,7 @@ def get_users(
     db: Session = Depends(database.get_db),
     current_admin: models.User = Depends(auth.require_admin)
 ):
-    # Most már nem fog 500-as hibát dobni, mert nem keresi az 'is_admin'-t
+
     return db.query(models.User).all()
 
 # 2. LÉTREHOZÁS

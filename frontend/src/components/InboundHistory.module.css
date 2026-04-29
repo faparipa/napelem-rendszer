@@ -1,0 +1,43 @@
+.resultList {
+  background: #f9f9f9;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #3498db;
+}
+
+.resultItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.historyBlock {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.historyBlock h5 {
+  margin-top: 0;
+  color: #1e293b;
+  border-bottom: 2px solid #3b82f6;
+  display: inline-block;
+  padding-bottom: 2px;
+}
+
+.divider {
+  border: 0;
+  border-top: 1px solid #cbd5e1;
+  margin: 10px 0;
+}
+
+.rekeszId {
+  font-family: monospace;
+  background: #e2e8f0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-weight: bold;
+}

@@ -67,10 +67,18 @@ class Projekt(Base):
 class ProjektNaplo(Base):
     __tablename__ = "projekt_naplo"
     id = Column("Naplo_ID", Integer, primary_key=True, index=True)
-    projekt_id = Column("Projekt_ID", Integer,
-                        ForeignKey("projekt.Projekt_ID"))
+    projekt_id = Column("Projekt_ID", Integer, ForeignKey(
+        "projekt.Projekt_ID"), nullable=False)
+
+    # ÚJ MEZŐ: Összekapcsolás a Felhasznalo táblával
+    user_id = Column("Felhasznalo_ID", Integer, ForeignKey(
+        "felhasznalo.Felhasznalo_ID"), nullable=True)
+
     status = Column("Statusz", String(20))
     timestamp = Column("Datum", DateTime, default=datetime.datetime.utcnow)
+
+    # Kapcsolat (Relationship) a könnyebb névlekérdezéshez
+    user = relationship("User")
 
 
 class ProjektAlkatresz(Base):

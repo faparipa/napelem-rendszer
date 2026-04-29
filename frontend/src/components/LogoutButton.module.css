@@ -1,0 +1,43 @@
+.logoutBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: #ef4444; /* Modern piros */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.logoutBtn:hover {
+  background-color: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.icon {
+  font-size: 1.2rem;
+}
+
+/* MOBIL NÉZET: Ha a képernyő kisebb, mint 768px */
+@media (max-width: 768px) {
+  .logoutBtn {
+    padding: 10px; /* Kisebb padding, hogy kerekebb legyen */
+    width: 40px;
+    height: 40px;
+    border-radius: 50%; /* Kör alakú mobilikon */
+  }
+
+  .text {
+    display: none; /* ELTÜNTETJÜK A SZÖVEGET */
+  }
+
+  .logoutBtn {
+    gap: 0;
+  }
+}
