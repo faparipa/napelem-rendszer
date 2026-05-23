@@ -34,7 +34,6 @@ const UserManagement = () => {
     }
   }, []);
 
-  // VISSZAKAPCSOLVA: Ez tölti be az adatokat és azonosít téged
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -52,7 +51,6 @@ const UserManagement = () => {
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
-      // FONTOS: A role értékének egyeznie kell az SQL ENUM-mal!
       await axios.post('http://localhost:8000/users', newUser, {
         headers: getHeaders(),
       });
@@ -91,7 +89,6 @@ const UserManagement = () => {
   };
 
   const handleDelete = async (user) => {
-    // Kettős védelem: ID vagy NÉV alapján (beleértve a fix 'vargaistvan'-t is)
     if (
       user.id === currentUserId ||
       user.username === currentUsername ||

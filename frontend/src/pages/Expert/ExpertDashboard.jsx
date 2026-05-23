@@ -1,241 +1,106 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './ExpertDashboard.module.css';
 import { generateProjectPDF } from './exportUtils';
 import PartSelector from './PartSelector';
 import ProjectPartsList from './ProjectPartsList';
-import { useNavigate } from 'react-router-dom';
 import CreateProjectModal from './CreateProjectModal';
 import LogoutButton from '../../components/LogoutButton';
 import ProjectTimeline from '../../components/ProjectTimeline';
+import useProjectStore from '../store/useProjectStore';
 
 const ExpertDashboard = () => {
-  const [projects, setProjects] = useState([]);
-  const [parts, setParts] = useState([]);
-  const [projectParts, setProjectParts] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [calc, setCalc] = useState({ hours: 0, hourlyRate: 0 });
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
-  const [isEditingCalc, setIsEditingCalc] = useState(true);
+  const {
+    projects,
+    parts,
+    projectParts,
+    selectedProject,
+    fetchAllData,
+    setSelectedProject,
+    addPart,
+    updatePartQty,
+    deletePart,
+    finalizeProject,
+    updateStatus,
+  } = useProjectStore();
 
   const [statusFilter, setStatusFilter] = useState('All');
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [showLog, setShowLog] = useState(false);
-
-  const filteredProjects = useMemo(() => {
-    if (statusFilter === 'All') return projects;
-    return projects.filter((p) => p.status === statusFilter);
-  }, [projects, statusFilter]);
-  // --- JOGOSULTSÁGOK ÉS STÁTUSZ LOGIKA ---
-
-  // Szerkeszthető: Csak ha még nincs a raktárosnál feldolgozás alatt
-  const isEditable =
-    selectedProject &&
-    ['New', 'Draft', 'Wait'].includes(selectedProject.status);
-
-  // Beküldhető: Csak az alapállapotokban
-  const canSubmitOrder = isEditable;
-
-  // PDF és Befejezés: Csak ha már a raktáros jóváhagyta és InProgress
-  const canGeneratePDF =
-    selectedProject?.status === 'InProgress' ||
-    selectedProject?.status === 'Completed';
-  const canFinalize = selectedProject?.status === 'InProgress';
+  const [isEditingCalc, setIsEditingCalc] = useState(false);
+  const [calc, setCalc] = useState({ hours: 0, hourlyRate: 0 });
 
   const token = localStorage.getItem('token');
-  const headers = useMemo(
-    () => ({ Authorization: `Bearer ${token}` }),
-    [token]
-  );
-
-  const fetchProjects = useCallback(async () => {
-    try {
-      const res = await axios.get('http://localhost:8000/expert/projects', {
-        headers,
-      });
-      setProjects(res.data);
-      if (selectedProject) {
-        const updated = res.data.find((p) => p.id === selectedProject.id);
-        if (updated) setSelectedProject(updated);
-      }
-    } catch (err) {
-      console.error('Projektek lekérése sikertelen', err);
-    }
-  }, [headers, selectedProject]);
-
-  const fetchParts = useCallback(async () => {
-    try {
-      const res = await axios.get(
-        'http://localhost:8000/expert/parts-with-stock',
-        { headers }
-      );
-      setParts(res.data);
-    } catch (err) {
-      console.error('Alkatrészek lekérése sikertelen', err);
-    }
-  }, [headers]);
-
-  const fetchProjectParts = useCallback(
-    async (id) => {
-      try {
-        const res = await axios.get(
-          `http://localhost:8000/expert/projects/${id}/parts`,
-          { headers }
-        );
-        setProjectParts(res.data);
-      } catch (err) {
-        console.error('Projekt alkatrészek lekérése sikertelen', err);
-      }
-    },
-    [headers]
-  );
 
   useEffect(() => {
     if (!token) {
       navigate('/login');
     } else {
-      fetchProjects();
-      fetchParts();
+      fetchAllData();
     }
-  }, [token, navigate, fetchParts]);
+  }, [token, navigate, fetchAllData]);
 
   useEffect(() => {
     if (selectedProject) {
-      fetchProjectParts(selectedProject.id);
-
-      const savedHours = selectedProject.estimated_time || 0;
-      const savedTotalPrice = selectedProject.price || 0;
-
-      if (savedHours > 0) {
-        const calculatedRate = Math.round(savedTotalPrice / savedHours);
-        setCalc({
-          hours: savedHours,
-          hourlyRate: calculatedRate,
-        });
+      const hours = selectedProject.estimated_time || 0;
+      const price = selectedProject.price || 0;
+      if (hours > 0) {
+        setCalc({ hours, hourlyRate: Math.round(price / hours) });
         setIsEditingCalc(false);
       } else {
         setCalc({ hours: 0, hourlyRate: 0 });
         setIsEditingCalc(true);
       }
     }
-  }, [selectedProject, fetchProjectParts]);
+  }, [selectedProject]);
 
-  // --- MŰVELETEK VÉDELEMMEL ---
+  if (!token) return null;
 
-  const handleAddPart = async (partId, qty) => {
-    if (!isEditable)
-      return alert('A projekt állapota miatt már nem adható hozzá alkatrész!');
-    if (!qty || qty <= 0)
-      return alert('Kérlek adj meg egy érvényes mennyiséget!');
-    try {
-      await axios.post(
-        `http://localhost:8000/expert/projects/${selectedProject.id}/parts`,
-        { part_id: partId, quantity: parseInt(qty) },
-        { headers }
-      );
-      fetchProjectParts(selectedProject.id);
-      fetchProjects();
-    } catch (err) {
-      alert('Hiba az alkatrész hozzáadásakor!');
-    }
-  };
+  const filteredProjects = useMemo(
+    () =>
+      statusFilter === 'All'
+        ? projects
+        : projects.filter((p) => p.status === statusFilter),
+    [projects, statusFilter]
+  );
 
-  const handleUpdateQty = async (itemId, currentQty) => {
-    if (!isEditable) return alert('A projekt már nem módosítható!');
-    const newQty = prompt('Új mennyiség:', currentQty);
-    if (!newQty || isNaN(newQty) || newQty <= 0) return;
-    try {
-      await axios.patch(
-        `http://localhost:8000/expert/project-parts/${itemId}`,
-        { quantity: parseInt(newQty) },
-        { headers }
-      );
-      fetchProjectParts(selectedProject.id);
-    } catch (err) {
-      alert('Hiba a módosításkor!');
-    }
-  };
+  const isEditable =
+    selectedProject &&
+    ['New', 'Draft', 'Wait', 'InProgress', 'Completed'].includes(
+      selectedProject.status
+    );
 
-  const handleDeleteItem = async (itemId) => {
-    if (!isEditable) return alert('A projekt már nem módosítható!');
-    if (!window.confirm('Biztosan törlöd ezt az alkatrészt a projektből?'))
-      return;
-    try {
-      await axios.delete(
-        `http://localhost:8000/expert/project-parts/${itemId}`,
-        { headers }
-      );
-      fetchProjectParts(selectedProject.id);
-    } catch (err) {
-      alert('Hiba a törléskor!');
-    }
-  };
+  const canGeneratePDF = ['Scheduled', 'InProgress', 'Completed'].includes(
+    selectedProject?.status
+  );
 
-  const handleSaveCalc = async () => {
-    if (!isEditable) return alert('A kalkuláció már nem módosítható!');
-    if (calc.hours <= 0 || calc.hourlyRate <= 0) {
-      return alert('Kérlek adj meg érvényes órát és óradíjat!');
-    }
-
-    const totalLaborFee = calc.hours * calc.hourlyRate;
-
-    try {
-      await axios.put(
-        `http://localhost:8000/expert/projects/${selectedProject.id}/finalize`,
-        {
-          estimated_time: calc.hours,
-          price: totalLaborFee,
-        },
-        { headers }
-      );
-
-      await fetchProjects();
-      setIsEditingCalc(false);
-      alert('Kalkuláció rögzítve!');
-    } catch (err) {
-      console.error('Hiba a rögzítéskor:', err);
-      alert('Nem sikerült rögzíteni az adatokat.');
-    }
-  };
-
-  const handleStatusUpdate = async (newStatus) => {
-    if (
-      !window.confirm(`Biztosan módosítod a projekt állapotát: ${newStatus}?`)
-    )
-      return;
-    try {
-      await axios.put(
-        `http://localhost:8000/expert/projects/${selectedProject.id}/status`,
-        { status: newStatus },
-        { headers }
-      );
-      alert(`Projekt állapota: ${newStatus}`);
-      fetchProjects();
-    } catch (err) {
-      alert('Hiba a státuszváltáskor!');
-    }
-  };
-
-  const handleOrder = async () => {
-    if (!canSubmitOrder) return;
-    try {
-      await axios.put(
-        `http://localhost:8000/expert/projects/${selectedProject.id}/finalize`,
-        { estimated_time: calc.hours, price: calc.hours * calc.hourlyRate },
-        { headers }
-      );
-      alert('Beküldve a raktárnak!');
-      fetchProjects();
-    } catch (err) {
-      alert('Hiba a beküldés során!');
-    }
-  };
+  const isCalculationValid =
+    projectParts.length > 0 && calc.hours > 0 && calc.hourlyRate > 0;
 
   const partsTotal = projectParts.reduce(
     (s, i) => s + i.price * i.required_quantity,
     0
   );
-  const laborTotal = (calc.hours || 0) * (calc.hourlyRate || 0);
+  const laborTotal = calc.hours * calc.hourlyRate;
+
+  const handleSaveCalc = async () => {
+    if (calc.hours <= 0 || calc.hourlyRate <= 0)
+      return alert('Érvénytelen adatok!');
+    setIsEditingCalc(false);
+    alert('Kalkuláció rögzítve!');
+  };
+
+  const onUpdateStatus = async (status) => {
+    if (window.confirm(`Módosítod a státuszt: ${status}?`)) {
+      await updateStatus(status);
+    }
+  };
+
+  // Csak akkor lehessen beküldeni, ha még nem lett véglegesítve (szerkeszthető státuszban van)
+  const canFinalize = useMemo(() => {
+    return selectedProject && ['New', 'Draft'].includes(selectedProject.status);
+  }, [selectedProject?.status]);
 
   return (
     <div className={styles.container}>
@@ -243,7 +108,9 @@ const ExpertDashboard = () => {
         <h2>👷 Szakember Munkalap</h2>
         <LogoutButton />
       </nav>
+
       <div className={styles.dashboardGrid}>
+        {/* SIDEBAR */}
         <div className={styles.sidebar}>
           <div className={styles.sidebarHeader}>
             <h3>Projektek</h3>
@@ -254,9 +121,7 @@ const ExpertDashboard = () => {
               + Új Project
             </button>
             <div className={styles.filterSection}>
-              <label htmlFor='statusFilter'>Szűrés állapotra:</label>
               <select
-                id='statusFilter'
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className={styles.statusSelect}
@@ -264,11 +129,10 @@ const ExpertDashboard = () => {
                 <option value='All'>Összes projekt</option>
                 <option value='New'>New (Új)</option>
                 <option value='Draft'>Draft (Vázlat)</option>
-                <option value='Wait'>Wait (Raktárra vár)</option>
-                <option value='Scheduled'>Scheduled (Ütemezve)</option>
-                <option value='InProgress'>InProgress (Folyamatban)</option>
-                <option value='Completed'>Completed (Kész)</option>
-                <option value='Failed'>Failed (Hiba)</option>
+                <option value='Wait'>Wait (Vár)</option>
+                <option value='Scheduled'>'Scheduled'</option>
+                <option value='InProgress'>InProgress</option>
+                <option value='Completed'>Completed</option>
               </select>
             </div>
           </div>
@@ -288,12 +152,7 @@ const ExpertDashboard = () => {
           </div>
         </div>
 
-        <CreateProjectModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onProjectCreated={fetchProjects}
-        />
-
+        {/* FŐ TARTALOM */}
         <div className={styles.mainContent}>
           {selectedProject ? (
             <div className={styles.details}>
@@ -304,15 +163,15 @@ const ExpertDashboard = () => {
                 </span>
               </header>
 
-              {/* Alkatrész választó elrejtése ha nem szerkeszthető */}
-              {isEditable && (
-                <PartSelector parts={parts} onAdd={handleAddPart} />
-              )}
+              {isEditable && <PartSelector parts={parts} onAdd={addPart} />}
 
               <ProjectPartsList
                 projectParts={projectParts}
-                onUpdate={handleUpdateQty}
-                onDelete={handleDeleteItem}
+                onUpdate={(id, qty) => {
+                  const newQty = prompt('Új mennyiség:', qty);
+                  if (newQty) updatePartQty(id, newQty);
+                }}
+                onDelete={(id) => window.confirm('Törlöd?') && deletePart(id)}
                 canSubmitOrder={isEditable}
               />
 
@@ -323,7 +182,7 @@ const ExpertDashboard = () => {
                   <div className={styles.inputRow}>
                     <input
                       type='number'
-                      placeholder='Munkaórák'
+                      placeholder='Óra'
                       value={calc.hours || ''}
                       onChange={(e) =>
                         setCalc({
@@ -331,11 +190,10 @@ const ExpertDashboard = () => {
                           hours: parseInt(e.target.value) || 0,
                         })
                       }
-                      disabled={!isEditable}
                     />
                     <input
                       type='number'
-                      placeholder='Szakember óradíja (Ft)'
+                      placeholder='Óradíj'
                       value={calc.hourlyRate || ''}
                       onChange={(e) =>
                         setCalc({
@@ -343,24 +201,16 @@ const ExpertDashboard = () => {
                           hourlyRate: parseInt(e.target.value) || 0,
                         })
                       }
-                      disabled={!isEditable}
                     />
-                    <button
-                      onClick={handleSaveCalc}
-                      className={styles.editBtn}
-                      disabled={!isEditable}
-                    >
+                    <button onClick={handleSaveCalc} className={styles.editBtn}>
                       Rögzít
                     </button>
                   </div>
                 ) : (
                   <div className={styles.savedCalc}>
                     <p>
-                      Munkaidő: {calc.hours} óra | Óradíj:{' '}
-                      {calc.hourlyRate.toLocaleString()} Ft/óra |{' '}
-                      <strong>
-                        Munkadíj: {laborTotal.toLocaleString()} Ft
-                      </strong>
+                      Munkadíj: {laborTotal.toLocaleString()} Ft ({calc.hours}{' '}
+                      óra)
                     </p>
                     {isEditable && (
                       <button
@@ -372,28 +222,24 @@ const ExpertDashboard = () => {
                     )}
                   </div>
                 )}
-
                 <hr />
                 <h3>
                   Végösszeg: {(partsTotal + laborTotal).toLocaleString()} Ft
                 </h3>
 
-                <button
-                  onClick={handleOrder}
-                  className={styles.orderBtn}
-                  disabled={!canSubmitOrder}
-                  style={
-                    !canSubmitOrder
-                      ? { backgroundColor: '#94a3b8', cursor: 'not-allowed' }
-                      : {}
-                  }
-                >
-                  {selectedProject?.status === 'InProgress'
-                    ? '🛠️ RAKTÁROZÁS ALATT (ZÁROLT)'
-                    : selectedProject?.status === 'Completed'
-                    ? '✅ PROJEKT KÉSZ'
-                    : '🚀 KALKULÁCIÓ VÉGLEGESÍTÉSE ÉS BEKÜLDÉSE'}
-                </button>
+                {isEditable && (
+                  <button
+                    onClick={() => finalizeProject(calc.hours, laborTotal)}
+                    className={`${styles.orderBtn} ${
+                      !canFinalize || !isCalculationValid
+                        ? styles.disabledBtn
+                        : ''
+                    }`}
+                    disabled={!canFinalize || !isCalculationValid}
+                  >
+                    📝 Kalkuláció véglegesítése (Készlet ellenőrzéssel)
+                  </button>
+                )}
               </div>
 
               <div className={styles.buttonGroup}>
@@ -403,26 +249,29 @@ const ExpertDashboard = () => {
                     generateProjectPDF(selectedProject, projectParts, calc, {
                       partsTotal,
                       laborTotal,
-                      grandTotal: partsTotal + laborTotal,
                     })
                   }
                   className={
                     canGeneratePDF ? styles.pdfBtnActive : styles.pdfBtnDisabled
                   }
                 >
-                  📄 ÁRKALKULÁCIÓ (PDF)
+                  📄 PDF
                 </button>
 
-                {canFinalize && (
+                {['New', 'Draft', 'Wait', 'InProgress', 'Scheduled'].includes(
+                  selectedProject?.status
+                ) && (
                   <div className={styles.finalActions}>
+                    {selectedProject?.status === 'InProgress' && (
+                      <button
+                        onClick={() => onUpdateStatus('Completed')}
+                        className={styles.completeBtn}
+                      >
+                        ✅ KÉSZ
+                      </button>
+                    )}
                     <button
-                      onClick={() => handleStatusUpdate('Completed')}
-                      className={styles.completeBtn}
-                    >
-                      ✅ KÉSZ
-                    </button>
-                    <button
-                      onClick={() => handleStatusUpdate('Failed')}
+                      onClick={() => onUpdateStatus('Failed')}
                       className={styles.failBtn}
                     >
                       ❌ HIBA
@@ -430,30 +279,27 @@ const ExpertDashboard = () => {
                   </div>
                 )}
               </div>
+
               <div className={styles.logSection}>
                 <button
                   onClick={() => setShowLog(!showLog)}
                   className={styles.toggleLogBtn}
                 >
-                  {showLog
-                    ? '🔼 Napló elrejtése'
-                    : '📜 Projekt életút (Napló) megtekintése'}
+                  {showLog ? '🔼 Elrejt' : '📜 Napló'}
                 </button>
-
-                {showLog && (
-                  <div className={styles.logContainer}>
-                    <ProjectTimeline projectId={selectedProject.id} />
-                  </div>
-                )}
+                {showLog && <ProjectTimeline projectId={selectedProject.id} />}
               </div>
             </div>
           ) : (
-            <div className={styles.emptyState}>
-              Válasszon egy projektet a listából!
-            </div>
+            <div className={styles.emptyState}>Válasszon projektet!</div>
           )}
         </div>
       </div>
+      <CreateProjectModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onProjectCreated={fetchAllData}
+      />
     </div>
   );
 };

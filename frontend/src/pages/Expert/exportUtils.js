@@ -80,11 +80,14 @@ export const generateProjectPDF = (project, projectParts, calc, totals) => {
     doc.setDrawColor(44, 62, 80);
     doc.line(14, finalY + 12, 120, finalY + 12);
 
+    // KISZÁMÍTÁS: Itt adjuk össze a kettőt helyben, így nem függünk a külső grandTotal-tól
+    const grandTotal = (totals.partsTotal || 0) + (totals.laborTotal || 0);
+
     // Végösszeg kiemelése
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.text(`VÉGÖSSZEG:`, 14, finalY + 20);
-    doc.text(`${totals.grandTotal.toLocaleString()} Ft`, 120, finalY + 20, {
+    doc.text(`${grandTotal.toLocaleString()} Ft`, 120, finalY + 20, {
       align: 'right',
     });
 

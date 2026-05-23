@@ -1,9 +1,6 @@
-
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from sqlalchemy.orm import joinedload
-from sqlalchemy import func
-from sqlalchemy import or_, func
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, or_
 from pydantic import BaseModel
 from typing import List, Optional
 import models
@@ -44,13 +41,11 @@ class AutoInboundRequest(BaseModel):
     part_id: int
     quantity: int
 
-# --- JOGOSULTSÁG ELLENŐRZŐ (Require Warehouse Manager) ---
+# --- JOGOSULTSÁG ELLENŐRZŐ ---
 
 
 def require_warehouse_manager(current_user: models.User = Depends(auth.get_current_user)):
-    """
-    Csak Raktárvezető vagy Adminisztrátor végezheti a módosításokat.
-    """
+    """Csak Raktárvezető vagy Adminisztrátor végezheti a módosításokat."""
     if current_user.role not in ["Raktarvezeto", "Adminisztrator", "Administrator"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -58,7 +53,7 @@ def require_warehouse_manager(current_user: models.User = Depends(auth.get_curre
         )
     return current_user
 
-# --- B.1: ÚJ ALKATRÉSZ FELVÉTELE (Törzsadat) ---
+# --- B.1: ÚJ ALKATRÉSZ FELVÉTELE ---
 
 
 @router.post("/parts", response_model=PartOut, status_code=status.HTTP_201_CREATED)
@@ -104,19 +99,12 @@ def update_part_price(
 
 @router.get("/reports/missing-parts")
 def get_missing_parts_report(db: Session = Depends(database.get_db), manager: models.User = Depends(require_warehouse_manager)):
-    """
-    Összegzi a fizikai készletet és összeveti a MÉG KISZEDÉSRE VÁRÓ projektek igényeivel.
-    """
-
-    # 1. Fizikai készlet összesítése (ami jelenleg a polcokon van)
+    """Összegzi a fizikai készletet és összeveti a MÉG KISZEDÉSRE VÁRÓ (Wait, Scheduled) projektek igényeivel."""
     physical_stock = db.query(
         models.WarehouseSlot.part_id,
         func.sum(models.WarehouseSlot.current_quantity).label("total_physical")
     ).filter(models.WarehouseSlot.part_id != None).group_by(models.WarehouseSlot.part_id).subquery()
 
-    # 2. JAVÍTOTT RÉSZ: Csak a 'Wait' és 'Scheduled' projektek igényeit adjuk össze!
-    # Az 'InProgress' már ki lett szedve, a fizikai készletből már levontuk,
-    # így nem szabad újra "igényként" számolni, különben duplázódik a hiány.
     reserved_stock = db.query(
         models.ProjektAlkatresz.part_id,
         func.sum(models.ProjektAlkatresz.required_quantity).label(
@@ -125,7 +113,6 @@ def get_missing_parts_report(db: Session = Depends(database.get_db), manager: mo
      .filter(models.Projekt.status.in_(["Wait", "Scheduled"]))\
      .group_by(models.ProjektAlkatresz.part_id).subquery()
 
-    # 3. Összevonás az Alkatresz törzzsel
     report = db.query(
         models.Part.name,
         func.coalesce(physical_stock.c.total_physical, 0).label("stock"),
@@ -136,11 +123,8 @@ def get_missing_parts_report(db: Session = Depends(database.get_db), manager: mo
 
     result = []
     for row in report:
-        # Csak akkor foglalkozunk az alkatrésszel, ha van rá aktív igény
         if row.needed > 0:
             diff = row.stock - row.needed
-
-            # Ha a készlet kevesebb, mint az összesített igény (diff negatív)
             if diff < 0:
                 result.append({
                     "name": row.name,
@@ -149,15 +133,12 @@ def get_missing_parts_report(db: Session = Depends(database.get_db), manager: mo
                     "missing_quantity": abs(diff)
                 })
             else:
-                # Opcionális: Ha látni akarod a listában azt is, amiből van elég
-                # de a hiány 0 db (mint a képeden a 'kapcsoló')
                 result.append({
                     "name": row.name,
                     "current_stock": row.stock,
                     "required_by_projects": row.needed,
                     "missing_quantity": 0
                 })
-
     return result
 
 
@@ -166,7 +147,7 @@ def setup_warehouse(
     rows: int = Query(..., gt=0),
     cols: int = Query(..., gt=0),
     levels: int = Query(..., gt=0),
-    slots_per_level: int = Query(..., gt=0),  # ÚJ: rekeszek száma polconként
+    slots_per_level: int = Query(..., gt=0),
     db: Session = Depends(database.get_db),
     manager: models.User = Depends(require_warehouse_manager)
 ):
@@ -180,9 +161,8 @@ def setup_warehouse(
     for r in range(1, rows + 1):
         for c in range(1, cols + 1):
             for l in range(1, levels + 1):
-                for s in range(1, slots_per_level + 1):  # Belső ciklus a rekeszeknek
+                for s in range(1, slots_per_level + 1):
                     rekesz_szam_global += 1
-                    # Formátum: Sor-Oszlop-Szint-Rekesz
                     readable = f"R{r:02d}-C{c:02d}-L{l:02d}-S{s:02d}"
 
                     new_slot = models.WarehouseSlot(
@@ -209,12 +189,11 @@ def setup_warehouse(
 def expand_warehouse(
     add_rows: int = Query(0, ge=0),
     add_cols: int = Query(0, ge=0),
-    levels: int = Query(..., gt=0),  # Polcok száma (szintek)
-    slots_per_level: int = Query(..., gt=0),  # Rekeszek száma egy polcon
+    levels: int = Query(..., gt=0),
+    slots_per_level: int = Query(..., gt=0),
     db: Session = Depends(database.get_db),
     manager: models.User = Depends(require_warehouse_manager)
 ):
-    # Aktuális max értékek a folytonos sorszámozáshoz
     current_max = db.query(
         func.max(models.WarehouseSlot.row_num).label("max_r"),
         func.max(models.WarehouseSlot.col_num).label("max_c"),
@@ -227,13 +206,11 @@ def expand_warehouse(
 
     new_slots = []
 
-    # Segédfüggvény a generáláshoz
     def create_slots(r, c):
         nonlocal curr_num
         for l in range(1, levels + 1):
             for s in range(1, slots_per_level + 1):
                 curr_num += 1
-                # Formátum: Sor-Oszlop-Szint-Rekesz (R01-C01-L01-S01)
                 readable = f"R{r:02d}-C{c:02d}-L{l:02d}-S{s:02d}"
                 new_slots.append(models.WarehouseSlot(
                     readable_id=readable,
@@ -244,14 +221,11 @@ def expand_warehouse(
                     current_quantity=0
                 ))
 
-    # 1. Új sorok generálása
     if add_rows > 0:
         for r in range(curr_rows + 1, curr_rows + add_rows + 1):
-            # Az új sor minden oszlopához (meglévők + esetleges új oszlopok)
             for c in range(1, curr_cols + add_cols + 1):
                 create_slots(r, c)
 
-    # 2. Új oszlopok generálása a már meglévő sorokhoz
     if add_cols > 0:
         for r in range(1, curr_rows + 1):
             for c in range(curr_cols + 1, curr_cols + add_cols + 1):
@@ -267,12 +241,12 @@ def expand_warehouse(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-# --- LISTÁZÁSOK ---
 
+
+# --- LISTÁZÁSOK ---
 
 @router.get("/parts")
 def list_parts(db: Session = Depends(database.get_db)):
-    # Alkatrészek lekérése a hozzájuk tartozó rekeszekben lévő mennyiségek összegével
     parts_with_stock = db.query(
         models.Part.id,
         models.Part.name,
@@ -295,11 +269,10 @@ def list_parts(db: Session = Depends(database.get_db)):
 
 @router.get("/slots")
 def list_slots(db: Session = Depends(database.get_db)):
-    """A rekeszek állapotának megtekintése"""
     return db.query(models.WarehouseSlot).all()
 
-# --- B.5 & B.6: BEÉRKEZŐ ANYAGOK FELVÉTELE ÉS KAPACITÁSKEZELÉS ---
 
+# --- B.5 & B.6: BEÉRKEZŐ ANYAGOK FELVÉTELE ÉS KAPACITÁSKEZELÉS ---
 
 @router.patch("/slots/{slot_id}/incoming")
 def receive_goods(
@@ -310,8 +283,6 @@ def receive_goods(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     if current_user.role not in ["Adminisztrator", "Raktarvezeto"]:
-        print(
-            f"DEBUG: Jogosultság hiba! Felhasználó: {current_user.username}, Rang: {current_user.role}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Nincs jogosultsága! Az Ön rangja: {current_user.role}"
@@ -337,14 +308,15 @@ def receive_goods(
     slot.part_id = part_id
     slot.current_quantity = new_total
 
-    new_log = models.KeszletNaplo(
+    new_log = models.KkeszletNaplo if hasattr(
+        models, 'KeszletNaplo') else models.KeszletNaplo
+    db.add(new_log(
         rekesz_id=slot.id,
         part_id=part_id,
         user_id=current_user.id,
         type="Bevételezés",
         quantity=quantity
-    )
-    db.add(new_log)
+    ))
     db.commit()
 
     return {"message": "Sikeres bevételezés", "uj_mennyiseg": slot.current_quantity}
@@ -356,7 +328,6 @@ def auto_receive_goods(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    # JOGOSULTSÁG ELLENŐRZÉS
     if current_user.role not in ["Adminisztrator", "Raktarvezeto"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -369,12 +340,9 @@ def auto_receive_goods(
         raise HTTPException(status_code=404, detail="Alkatrész nem található")
 
     maradek = adatok.quantity
-    # Ebben a listában tároljuk, melyik rekeszbe mennyit tettünk (a naplóhoz)
     elosztas_info = []
-    # Ez megy vissza a frontendnek
     allocation_for_frontend = []
 
-    # 1. Meglévő rekeszek (ahol már van ilyen alkatrész)
     rekeszek = db.query(models.WarehouseSlot).filter(
         models.WarehouseSlot.part_id == adatok.part_id,
         models.WarehouseSlot.current_quantity < alkatresz.max_per_slot
@@ -387,12 +355,10 @@ def auto_receive_goods(
         tobb = min(maradek, hely)
         r.current_quantity += tobb
         maradek -= tobb
-        # ELMENTJÜK A REKESZ ID-T IS!
         elosztas_info.append({"rekesz_id": r.id, "mennyiseg": tobb})
         allocation_for_frontend.append(
             {"readable_id": r.readable_id, "allocated_quantity": tobb})
 
-    # 2. Üres rekeszek (Ha még maradt áru)
     if maradek > 0:
         ures_helyek = db.query(models.WarehouseSlot).filter(
             or_(models.WarehouseSlot.part_id == None,
@@ -406,41 +372,32 @@ def auto_receive_goods(
             r.part_id = adatok.part_id
             r.current_quantity = tobb
             maradek -= tobb
-            # ELMENTJÜK A REKESZ ID-T IS!
             elosztas_info.append({"rekesz_id": r.id, "mennyiseg": tobb})
             allocation_for_frontend.append(
                 {"readable_id": r.readable_id, "allocated_quantity": tobb})
 
-    # Helyellenőrzés
     if maradek > 0:
         db.rollback()
         raise HTTPException(
             status_code=400, detail=f"Nincs elég hely! {maradek} db-nak nem jutott rekesz.")
 
-    # 3. NAPLÓZÁS (Most már nem lesz Rekesz_ID is null hiba)
-    for tétel in elosztas_info:
-        uj_naplo = models.KeszletNaplo(
-
-            rekesz_id=tétel["rekesz_id"],
+    new_log_model = models.KeszletNaplo if hasattr(
+        models, 'KkeszletNaplo') else models.KeszletNaplo
+    for tetel in elosztas_info:
+        db.add(new_log_model(
+            rekesz_id=tetel["rekesz_id"],
             part_id=adatok.part_id,
             user_id=current_user.id,
             type="Bevételezés (Automata)",
-            quantity=tétel["mennyiseg"]
-        )
-        db.add(uj_naplo)
+            quantity=tetel["mennyiseg"]
+        ))
 
     db.commit()
-    # A frontendnek a "readable_id" (pl. R01-C01-L01) kell, a naplónak az adatbázis ID
     return {"status": "success", "allocation": allocation_for_frontend}
 
 
 @router.get("/reports/project-requirements")
 def get_project_requirements(db: Session = Depends(database.get_db)):
-    """
-    Listázza az összes várakozó vagy folyamatban lévő projektet 
-    és a hozzájuk rendelt alkatrészeket.
-    """
-    # Lekérjük a projekteket, amik már átmentek a szakemberen (Wait, Scheduled, InProgress)
     results = db.query(
         models.Projekt.id.label("p_id"),
         models.Projekt.location,
@@ -448,10 +405,9 @@ def get_project_requirements(db: Session = Depends(database.get_db)):
         models.ProjektAlkatresz.required_quantity
     ).join(models.ProjektAlkatresz, models.Projekt.id == models.ProjektAlkatresz.projekt_id)\
      .join(models.Part, models.ProjektAlkatresz.part_id == models.Part.id)\
-     .filter(models.Projekt.status.in_(["Wait", "Scheduled",]))\
+     .filter(models.Projekt.status.in_(["Wait", "Scheduled"]))\
      .all()
 
-    # Formázás a frontendnek
     return [
         {
             "project_id": r.p_id,
@@ -462,30 +418,46 @@ def get_project_requirements(db: Session = Depends(database.get_db)):
     ]
 
 
+# --- C.3: ÁRKALKULÁCIÓ VÉGLEGESÍTÉSE ÉS ÜTEMEZÉS ---
 @router.post("/projects/{p_id}/finalize-and-schedule")
-def finalize_and_schedule(p_id: int, db: Session = Depends(database.get_db)):
-    project = db.query(models.Projekt).filter(
-        models.Projekt.id == p_id).first()
+def finalize_and_schedule(p_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    project = db.query(models.Projekt).options(
+        joinedload(models.Projekt.alkatreszek).joinedload(models.ProjektAlkatresz.alkatresz) if hasattr(
+            models.Projekt, 'alkatreszek') else joinedload('*')
+    ).filter(models.Projekt.id == p_id).first()
 
-    # 1. Készletellenőrzés
-    for item in project.alkatreszek:
+    if not project:
+        raise HTTPException(status_code=404, detail="Projekt nem található")
+
+    alkatresz_lista = project.alkatreszek if hasattr(
+        project, 'alkatreszek') else []
+    for item in alkatresz_lista:
         total_stock = db.query(func.sum(models.WarehouseSlot.current_quantity))\
                         .filter(models.WarehouseSlot.part_id == item.part_id).scalar() or 0
-        if total_stock < item.required_quantity:
-            raise HTTPException(
-                status_code=400, detail=f"Nincs elég készlet: {item.alkatresz.name}")
 
-    # 2. Státuszváltás Scheduled-re
+        # Ha nincs elég raktáron, nem lehet befejezni a kalkulációt -> Wait állapotba kerül
+        if total_stock < item.required_quantity:
+            project.status = "Wait"
+            db.add(models.ProjektNaplo(
+                projekt_id=p_id,
+                status="Wait",
+                user_id=current_user.id,
+            ))
+            db.commit()
+            raise HTTPException(
+                status_code=400, detail="Nincs elég készlet a raktárban, a projekt 'Wait' állapotba került.")
+
+    # Ha minden megvan, az árkalkuláció elkészült -> Scheduled
     project.status = "Scheduled"
 
-    # 3. Naplózás (időbélyeggel a statisztikához)
     db.add(models.ProjektNaplo(
         projekt_id=p_id,
         status="Scheduled",
-        message="Raktárvezető jóváhagyta, készlet lefoglalva, kalkuláció végleges."
+        user_id=current_user.id,
+
     ))
     db.commit()
-    return {"message": "Projekt ütemezve, kalkuláció kész."}
+    return {"message": "Projekt sikeresen ütemezve (Scheduled)."}
 
 
 @router.get("/projects/{p_id}/picking-list")
@@ -496,22 +468,20 @@ def get_picking_list(p_id: int, db: Session = Depends(database.get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="Projekt nem található")
 
-    # ÚJ VÉDELEM: Ha a projekt már InProgress vagy Completed, ne adjunk kiszedési listát!
-    if project.status not in ["Wait", "Scheduled"]:
+    if project.status not in ["Wait", "Scheduled", "InProgress"]:
         raise HTTPException(
             status_code=400,
-            detail=f"Ez a projekt már elhagyta a raktárt (Státusz: {project.status})"
+            detail=f"Ez a projekt nem kiszedhető állapotban van (Státusz: {project.status})"
         )
 
-    # Lekérjük az igényelt alkatrészeket
     project_parts = db.query(
         models.ProjektAlkatresz,
         models.Part.name.label("part_name")
-    ).join(models.Part, models.ProjektAlkatresz.part_id == models.Part.id
-           ).filter(models.ProjektAlkatresz.projekt_id == p_id).all()
+    ).join(models.Part, models.ProjektAlkatresz.part_id == models.Part.id)\
+     .filter(models.ProjektAlkatresz.projekt_id == p_id).all()
 
     all_picking_steps = []
-    has_missing_item = False  # Segédváltozó a hiány jelzésére
+    has_missing_item = False
 
     for item_row in project_parts:
         item, p_name = item_row[0], item_row[1]
@@ -523,7 +493,6 @@ def get_picking_list(p_id: int, db: Session = Depends(database.get_db)):
         ).order_by(models.WarehouseSlot.rekesz_num.asc()).all()
 
         if not slots:
-            # NINCS KÉSZLETEN EGYÁLTALÁN
             has_missing_item = True
             all_picking_steps.append({
                 "location": "NINCS RAKTÁRON",
@@ -531,11 +500,9 @@ def get_picking_list(p_id: int, db: Session = Depends(database.get_db)):
                 "stock_qty": 0,
                 "required_qty": needed_qty,
                 "is_missing": True,
-                "order_num": 999999  # A lista végére kerüljön
+                "order_num": 999999
             })
         else:
-            # Van készlet, a korábbi logika szerint feldolgozzuk...
-            collected_from_slots = 0
             for slot in slots:
                 if needed_qty <= 0:
                     break
@@ -549,9 +516,7 @@ def get_picking_list(p_id: int, db: Session = Depends(database.get_db)):
                     "order_num": slot.rekesz_num
                 })
                 needed_qty -= take_qty
-                collected_from_slots += take_qty
 
-            # Ha a rekeszekből nem jött össze a teljes igényelt mennyiség
             if needed_qty > 0:
                 has_missing_item = True
 
@@ -560,7 +525,6 @@ def get_picking_list(p_id: int, db: Session = Depends(database.get_db)):
     return {
         "project_info": {
             "id": project.id,
-            # Frontend ebből tudja, h tiltható-e a gomb
             "can_complete": not has_missing_item,
             "estimated_time": project.estimated_time,
             "labor_fee": project.price
@@ -570,55 +534,65 @@ def get_picking_list(p_id: int, db: Session = Depends(database.get_db)):
 
 
 @router.patch("/projects/{p_id}/send-back")
-def send_back_to_expert(p_id: int, reason: str = Query(...), db: Session = Depends(database.get_db)):
+def send_back_to_expert(p_id: int, reason: str = Query(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     project = db.query(models.Projekt).filter(
         models.Projekt.id == p_id).first()
     if not project:
         raise HTTPException(status_code=404)
 
-    # Visszaállítjuk Draft-ra, hogy a szakember újra tudja szerkeszteni/törölni
     project.status = "Draft"
 
-    # Naplózás indokkal
-    log = models.ProjektNaplo(
+    db.add(models.ProjektNaplo(
         projekt_id=p_id,
         status="Draft",
-        message=f"Raktárvezető visszaküldte módosításra. Indok: {reason}"
-    )
-    db.add(log)
+        user_id=current_user.id,
+    ))
     db.commit()
-    return {"message": "Projekt visszaküldve a szakembernek."}
+    return {"message": "Projekt visszaküldve a szakembernek (Draft)."}
 
 
 @router.patch("/projects/{p_id}/fail")
-def fail_project(p_id: int, reason: str = Query(...), db: Session = Depends(database.get_db)):
+def fail_project(p_id: int, reason: str = Query(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     project = db.query(models.Projekt).filter(
         models.Projekt.id == p_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projekt nem található")
+
     project.status = "Failed"
-    db.add(models.ProjektNaplo(projekt_id=p_id,
-           status="Failed", message=f"Meghiúsult: {reason}"))
+
+    db.add(models.ProjektNaplo(
+        projekt_id=p_id,
+        status="Failed",
+        user_id=current_user.id,
+
+    ))
     db.commit()
     return {"status": "Failed"}
 
 
 @router.patch("/projects/{p_id}/complete")
-def complete_project(p_id: int, db: Session = Depends(database.get_db)):
+def complete_project(p_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     project = db.query(models.Projekt).filter(
         models.Projekt.id == p_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Projekt nem található")
+
     project.status = "Completed"
+
+    db.add(models.ProjektNaplo(
+        projekt_id=p_id,
+        status="Completed",
+        user_id=current_user.id,
+
+    ))
     db.commit()
     return {"status": "success"}
 
 
+# --- C.1: KISZEDÉS ELINDÍTÁSA (STÁTUSZÁTMENET INPROGRESS-BE) ---
 @router.patch("/projects/{p_id}/start-picking")
 def start_picking(p_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    """
-    C.1: Raktáros elindítja a kivételezést. 
-    Státusz: Scheduled -> InProgress
-    """
-    # Jogosultság ellenőrzés (Raktáros vagy felette)
+    """A raktáros elindítja az alkatrészek kivételezését. Státusz: Scheduled -> InProgress"""
     if current_user.role not in ["Raktaros", "Raktarvezeto", "Adminisztrator"]:
         raise HTTPException(
             status_code=403, detail="Nincs jogosultsága a kivételezéshez!")
@@ -630,34 +604,41 @@ def start_picking(p_id: int, db: Session = Depends(database.get_db), current_use
 
     if project.status != "Scheduled":
         raise HTTPException(
-            status_code=400, detail="Csak 'Scheduled' állapotú projekt indítható el!")
+            status_code=400, detail="Csak 'Scheduled' állapotú projekt esetében indítható el a kivételezés!")
 
-    # Átállítás InProgress-re
+    # A megvalósítás megkezdődött, első lépés a raktári kivételezés -> InProgress
     project.status = "InProgress"
 
-    # Naplózás
-    db.add(models.ProjektNaplo(projekt_id=p_id, status="InProgress"))
+    db.add(models.ProjektNaplo(
+        projekt_id=p_id,
+        status="InProgress",
+        user_id=current_user.id,
+
+    ))
     db.commit()
 
-    return {"status": "InProgress", "message": "A projekt állapota 'Folyamatban'-ra módosult. A kivételezési lista nyomtatható."}
+    return {"status": "InProgress", "message": "A projekt állapota 'InProgress'-re módosult."}
 
 
+# --- C.2: KISZEDÉS VÉGLEGESÍTÉSE (KÉSZLET LEVONÁS, STÁTUSZ MARAD INPROGRESS) ---
 @router.patch("/projects/{p_id}/confirm-and-close")
-def confirm_and_close(p_id: int, db: Session = Depends(database.get_db)):
+def confirm_and_close(p_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """A kiszedés tényleges befejezése, a fizikai készlet levonódik, de a projekt InProgress marad."""
     project = db.query(models.Projekt).filter(
         models.Projekt.id == p_id).first()
 
     if not project:
         raise HTTPException(status_code=404, detail="Projekt nem található")
 
-    # 1. Készlet tényleges levonása a raktárból
+    if project.status not in ["InProgress", "Scheduled"]:
+        raise HTTPException(
+            status_code=400, detail="A kiszedést csak 'InProgress' státuszú projektnél lehet véglegesíteni!")
+
     parts = db.query(models.ProjektAlkatresz).filter(
-        models.ProjektAlkatresz.projekt_id == p_id
-    ).all()
+        models.ProjektAlkatresz.projekt_id == p_id).all()
 
     for item in parts:
         remaining = item.required_quantity
-        # Keressük azokat a rekeszeket, ahol van ilyen alkatrész
         slots = db.query(models.WarehouseSlot).filter(
             models.WarehouseSlot.part_id == item.part_id,
             models.WarehouseSlot.current_quantity > 0
@@ -670,21 +651,18 @@ def confirm_and_close(p_id: int, db: Session = Depends(database.get_db)):
             slot.current_quantity -= take
             remaining -= take
 
-            # Ha kiürült a rekesz, felszabadítjuk
             if slot.current_quantity == 0:
                 slot.part_id = None
 
-    # 2. STÁTUSZ FRISSÍTÉSE
-    # A models.py szerint a Projekt táblában 'status' (Statusz) mező van
+    # A raktárból kikerültek a dolgok, de a projekt még folyamatban van (InProgress)
     project.status = "InProgress"
 
-    # 3. NAPLÓZÁS - CSAK OLYAN MEZŐKKEL, AMIK A MODELS.PY-BAN VANNAK!
-    # A ProjektNaplo-ban csak id, projekt_id, status és timestamp van.
-    uj_naplo = models.ProjektNaplo(
+    db.add(models.ProjektNaplo(
         projekt_id=p_id,
-        status="InProgress"
-    )
-    db.add(uj_naplo)
+        status="InProgress",
+        user_id=current_user.id,
+
+    ))
 
     try:
         db.commit()
@@ -694,25 +672,19 @@ def confirm_and_close(p_id: int, db: Session = Depends(database.get_db)):
         raise HTTPException(
             status_code=500, detail=f"Hiba a mentés során: {str(e)}")
 
-    return {"message": "Kiszedés sikeres", "new_status": project.status}
+    return {"message": "Készlet sikeresen frissítve", "new_status": project.status}
 
 
 @router.get("/slots-status")
 def get_slots_with_status(db: Session = Depends(database.get_db)):
-    """
-    Kifejezetten a vizuális raktár-térképhez: 
-    Visszaadja a rekeszeket az alkatrész névvel és max kapacitással.
-    """
-    # A joinedload elengedhetetlen, hogy a 'part' kapcsolat ne legyen None
+    """A vizuális raktár-térképhez visszaadja a rekeszeket alkatrész névvel."""
     slots = db.query(models.WarehouseSlot).options(
         joinedload(models.WarehouseSlot.part)
     ).all()
 
     result = []
     for slot in slots:
-        # Ellenőrizzük, hogy van-e alkatrész a rekeszben
         has_part = slot.part is not None
-
         result.append({
             "id": slot.id,
             "readable_id": slot.readable_id,
@@ -723,5 +695,4 @@ def get_slots_with_status(db: Session = Depends(database.get_db)):
             "col_num": slot.col_num,
             "level_num": slot.level_num
         })
-
     return result

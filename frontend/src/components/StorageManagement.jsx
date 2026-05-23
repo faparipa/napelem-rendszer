@@ -1,30 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import styles from './StorageManagement.module.css';
+import useWorkerStore from '../pages/store/useWorkerStore';
 
 const StorageManagement = () => {
-  const [slots, setSlots] = useState([]);
+  const { slotsStatus, fetchSlotsStatus } = useWorkerStore();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchSlots = async () => {
-    try {
-      const res = await axios.get(
-        'http://localhost:8000/warehouse/slots-status',
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        }
-      );
-      setSlots(res.data);
-    } catch (err) {
-      console.error('Hiba a rekeszek betöltésekor', err);
-    }
-  };
-
   useEffect(() => {
-    fetchSlots();
-  }, []);
+    fetchSlotsStatus();
+  }, [fetchSlotsStatus]);
 
-  const filteredSlots = slots.filter(
+  const filteredSlots = slotsStatus.filter(
     (slot) =>
       slot.readable_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (slot.part_name &&
@@ -48,13 +34,11 @@ const StorageManagement = () => {
           const current = slot.current_quantity || 0;
           const max = slot.max_per_slot || 0;
           const occupancy = max > 0 ? Math.round((current / max) * 100) : 0;
-          const partName = slot.part_name || 'Üres rekesz';
 
           return (
             <div key={slot.id} className={styles.slotCard}>
               <div className={styles.slotId}>{slot.readable_id}</div>
 
-              {/* Alkatrész neve - Ha nincs benne semmi, írjuk ki hogy Üres */}
               <div className={styles.partName}>
                 {slot.part_name ? (
                   <strong>{slot.part_name}</strong>

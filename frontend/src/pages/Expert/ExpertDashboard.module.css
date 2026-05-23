@@ -193,19 +193,29 @@
 
 .pdfBtnActive,
 .orderBtn {
-  background-color: #6c757d;
+  background-color: #28a745; /* szép zöld */
   color: white;
+  cursor: pointer;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
   padding: 10px 15px;
   border: none;
   border-radius: 4px;
-  cursor: pointer;
   margin-bottom: 1rem;
   font-size: 1rem;
 }
 
 .pdfBtnActive:hover,
 .orderBtn:hover {
-  background-color: #5a6268;
+  background-color: #228f3b;
+}
+
+.disabledBtn {
+  background-color: #6c757d !important; /* szürke háttér */
+  color: #e9ecef !important; /* halványabb szöveg */
+  opacity: 0.65; /* kicsit áttetsző */
+  cursor: not-allowed !important; /* áthúzott kör/tiltó egérkurzor */
+  pointer-events: none; /* teljesen blokkolja a CSS hover/click eseményeket */
+  box-shadow: none !important;
 }
 
 .finalActions {
@@ -365,11 +375,31 @@
   font-weight: bold;
   cursor: pointer;
   transition: background 0.2s ease;
+  margin-top: 1rem;
 }
 .cancelBtn:hover {
   background-color: #c0392b;
 }
 
+.supplementalBtn {
+  background-color: #ffc107 !important; /* Figyelemfelkeltő sárga */
+  color: #212529 !important; /* Jól olvasható sötét szöveg */
+  border: 1px solid #e0a800 !important;
+  font-weight: bold;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* Hover (egér felette) állapot a pótrendelés gombhoz */
+.supplementalBtn:hover:not(:disabled) {
+  background-color: #e0a800 !important; /* Kicsit sötétebb sárga */
+  transform: translateY(-1px); /* Enyhe felemelkedés effekt */
+}
+
+/* Klikk effekt */
+.supplementalBtn:active:not(:disabled) {
+  transform: translateY(1px);
+}
 /* --- ANIMÁCIÓK --- */
 @keyframes fadeIn {
   from {

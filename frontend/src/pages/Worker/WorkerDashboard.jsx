@@ -1,76 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+//
+import React, { useEffect } from 'react';
 import ProjectRequirements from '../../components/ProjectRequirements';
 import styles from './WorkerDashboard.module.css';
 import LogoutButton from '../../components/LogoutButton';
 import StorageManagement from '../../components/StorageManagement';
+import useWorkerStore from '../store/useWorkerStore'; // Ellenőrizd az elérési utat!
 
 const WorkerDashboard = () => {
-  const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [pickingList, setPickingList] = useState([]);
-  const token = localStorage.getItem('token');
-  const headers = { Authorization: `Bearer ${token}` };
-  const [projectDetails, setProjectDetails] = useState({ can_complete: false });
-
-  const loadProjects = async () => {
-    try {
-      const res = await axios.get(
-        'http://localhost:8000/warehouse/reports/project-requirements',
-        { headers }
-      );
-      const unique = [];
-      const map = new Map();
-      for (const item of res.data) {
-        if (!map.has(item.project_id)) {
-          map.set(item.project_id, true);
-          unique.push({ id: item.project_id, location: item.location });
-        }
-      }
-      setProjects(unique);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const {
+    selectedProject,
+    pickingList,
+    projectDetails,
+    loadProjects,
+    selectProject,
+    completePicking,
+  } = useWorkerStore();
 
   useEffect(() => {
     loadProjects();
-  }, []);
+  }, [loadProjects]);
 
-  const handleSelectProject = async (pId) => {
-    try {
-      const res = await axios.get(
-        `http://localhost:8000/warehouse/projects/${pId}/picking-list`,
-        { headers }
-      );
-      setPickingList(res.data.picking_steps);
-      setProjectDetails(res.data.project_info);
-      setSelectedProject(pId);
-    } catch (err) {
-      console.error('Hiba a projekt részleteinek lekérésekor:', err);
-    }
-  };
-
-  const handleComplete = async () => {
-    if (!window.confirm('Lezárod a kiszedést?')) return;
-    try {
-      await axios.patch(
-        `http://localhost:8000/warehouse/projects/${selectedProject}/confirm-and-close`,
-        {},
-        { headers }
-      );
-
-      // AZONNAL nullázzuk az állapotokat, hogy ne lehessen újra kattintani
-      setSelectedProject(null);
-      setPickingList([]);
-      setProjectDetails({ can_complete: false }); // Reseteljük a gomb állapotát is
-
-      // Csak ezután töltsük újra a listát a háttérben
-      await loadProjects();
-
-      alert('Kész!');
-    } catch (err) {
-      alert('Hiba a lezárás során!');
+  const handleComplete = () => {
+    if (window.confirm('Lezárod a kiszedést?')) {
+      completePicking();
     }
   };
 
@@ -86,7 +38,7 @@ const WorkerDashboard = () => {
           <h3>Választható Projektek</h3>
           <div className={styles.projectSelector}>
             <ProjectRequirements
-              onSelect={(id) => handleSelectProject(id)}
+              onSelect={(id) => selectProject(id)}
               selectedId={selectedProject}
             />
           </div>
@@ -132,7 +84,6 @@ const WorkerDashboard = () => {
                 </tbody>
               </table>
               <button
-                // Dinamikusan fűzzük össze az osztályneveket
                 className={`${styles.btnComplete} ${
                   projectDetails?.can_complete ? styles.active : styles.disabled
                 }`}
